@@ -1,0 +1,146 @@
+% ssk_impl.tex - SSK implementation
+
+\iffalse
+Copyright (C) 2018 -- Matthew R. Wette.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with no
+Invariant Sections, no Front-Cover Texts, and no Back-Cover Texts.  A
+copy of the license is included with the distribution as @file{COPYING.DOC}.
+\fi
+
+\documentclass{article}
+\usepackage{times}
+\usepackage{amsmath}
+
+\setlength{\textheight}{9in}
+\setlength{\textwidth}{6.5in}
+\setlength{\topmargin}{-.5in}
+\setlength{\evensidemargin}{0in}
+\setlength{\oddsidemargin}{0in}
+
+\begin{document}
+
+
+\section{The Reader (mdreader.py)}
+
+The reader is a sax type xml reader.  There are a set of classes,
+derived from LtWtHdlr that have two routines begEltIn and endEltIn.
+In the context of a handler, new tags are passed to the begEltIn method.
+If there is a handler class for this tag then the new handler is pushed
+onto the handler stack and takes over.  When the new endEltIn sees the
+tag's end-tag then the handler is popped off the stack and the parent
+handler takes over.
+
+The reader has a cleanup capability that should be used.  For example,
+the Vertex class has arrays for incoming and outgoing transitions but
+these are not populated by MD17.
+
+
+\section{The Validator (anlyz.py)}
+
+The uml2 package has a validator that can be used to catch errors as well
+as enforce sublangage definitions (e.g., restrictions on state naming, or 
+use of certain events, or use of certain syntax).
+
+\section{The Translater (uml2ssk.py)}
+
+This section is about the translator
+
+\section{The Code Generators}
+
+This section is about the code generation.
+
+TODO list:
+\begin{enumeration}
+\item enumerate the actions 
+\item fix eval routine so that it gets/puts events and state.
+\end{enumeration}
+
+
+\subsection{Implied Transitions}
+
+\begin{itemize}
+\item to orthogonal state: implied initial states
+\item from othogonal state: ???
+\end{itemize}
+
+
+\subsection{Encoding the State}
+
+The machine state is encoded as an array of leaf-state identifiers.
+In the case of a machine which has no orthongonal states the array has
+length one.  Each state has a unique identifier.  If a state contains
+multiple regions (i.e., it is an orthogonal state), then the state
+will occupy multiple elements in the array.
+
+NOTE: we should make sure lowest identifiers are used for simple states
+
+We could encode states by regional context, using offset into the region. 
+In this case the enumerations will be kept small.  Or we could generate a 
+unique id for each state in the machine.  This may potentially generate
+a large number for the state.  We'd like to keep the number small (e.g., <256)
+so that we can encode a state using a single byte.
+
+CONJECTURE: offset 0 will always be nonzero
+
+Info
+\begin{itemize}
+\item Within any region, only one state is active at any time.
+\item For each composite state in a region, the max number of slots
+  needed is bounded by the sum of the max used for each region.
+\end{itemize}
+
+The state encoding gets described here.  We need to handle parallel transitions?
+\begin{itemize}
+\item only simple state ids are used in the encoding
+\item in a region each simple or composite state requires one slot
+\item in a region each orthogonal state requires the max slots for that state
+\item the maximum slots required to encode a state is equial to the max over
+all regions in the state
+\item (prove) each each region has a unique offset into the slot array
+\item (prove) each (simple) state has a unique offset into the slot
+  array, which is given by the offset of the parent region of that state
+\end{itemize}
+
+For simple states we generate an array of the state offset:
+\begin{verbatim}
+oset_enc[] = { 0, 2, 1, 0, 0, 1 };
+\end{verbatim}
+and then to determine if we are in that state we ask
+\begin{verbatim}
+  encoding[oset_end[state]] == state ?
+\end{verbatim}
+
+One could use unique state ids or state offsets in the region, but
+state ids are probably better.
+
+When there is a transition the deepest common region (LCA) will be changed. 
+Need to look at situations where a bla bla bla
+
+State id zero is reserved for nothing (or root state).
+
+\begin{verbatim}
+for (i = 0; i < N; i++) {
+  switch(mst[i]) {
+  case 1: ... break;
+  case 2: ... break;
+  case 255: ... break;
+  }
+}
+now what?
+\end{verbatim}
+
+\subsection{Flattening}
+
+It is possible to flatten statecharts.  Consider a statechart which has
+no othogonal regions.  (There is code in the implementation to flatten
+statecharts.  I'm not sure this is fully implemented.)
+
+
+\end{document}
+
+
+
+

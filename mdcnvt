@@ -1,0 +1,196 @@
+#!/usr/bin/env python
+#
+# Copyright 2005-2013,2018 Matthew R. Wette
+#
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 3 of the License, or (at your option) any later version.
+#
+# This library is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Lesser General Public License for more details.
+#
+# You should have received a copy of the licence with this software.
+# If not, see <http://www.gnu.org/licenses/>.
+
+#from util1 import move_if_changed, replace_c_code
+
+import sys
+import pickle
+import pdb                              # debugger
+from zipfile import *
+from getopt import getopt
+
+sys.path.append(".")
+
+from ssk1.mdreader import *
+import ssk1.uanlyz
+from ssk1.uml2ssk import *
+from ssk1.ssk1 import index_ssk
+from ssk1.sskP import SskXmlWriter
+from ssk1.impl_c2 import C2Impl
+
+def get_diag_list(model):
+    """
+    Generate list of diagrams in the model.
+    """
+    dlist = []
+    #pdb.set_trace()
+    for elt in model.packagedElement:
+        eclass = elt.__class__
+        if eclass == uml2.StateMachine:
+            if elt.name:
+                ename = elt.name
+            else:
+                ename = '(unmamed)'
+            cname = str(eclass)[5:]
+            dlist.append((ename,cname))
+        elif eclass == uml2.Package:
+            l = get_diag_list(elt)
+            dlist.extend(l)
+        else:
+            continue
+    return dlist
+
+def list_diag(model):
+    dlist = get_diag_list(model)
+    for diag in dlist:
+        ename, cname = diag
+        print "%-20s %s" % (ename, cname)
+
+def is_zipfile(filename):
+    rx = re.compile(r'.*\.(md)?zip$')
+    m = rx.match(filename)
+    return m
+
+md_mf_name = 'com.nomagic.magicdraw.uml_model.model' # file w/ model
+
+def zipbuf(filename):
+    # return buffer of contents of file
+    # 17.0.2 on: file is com.nomagic.magicdraw.uml_model.model
+    za = ZipFile(filename)
+    nl = za.namelist()
+    if len(nl) == 1:
+        # 17.0.1 and prior
+        buf = za.read(nl[0])
+    elif md_mf_name in nl:
+        buf = za.read(md_mf_name)
+    else:
+        print "*** mdcnvt: could not find model file in zip archive:", nl
+        sys.exit(1)
+    #return buf
+    return buf.encode('utf-8')
+
+
+def main(argv):
+    """
+    mdcnvt[-l] <file> <mach>
+    example: ./mdcnvt SSKdemo1.mdzip Demo1B2
+    """
+    ld = False                          # list diagrams
+    mach = None                         # machine
+    file = None                         # filename
+    cn = None                           # codgen: class name
+    fb = None                           # codegen: file base (what for?)
+    diags = []                          # diagrams to process
+
+    # Process options.
+    sopts = 'hlc:b:m:'
+    lopts = [ 'help', 'list', 'class-name=', 'file-base=', 'mach=' ]
+    opts, argv = getopt(argv[1:], sopts, lopts)
+    if len(argv) > 0:
+        file = argv[0]                  # file name
+    if len(argv) > 1:
+        diags = argv[1:]                # diagrams
+    for opt in opts:
+        key = opt[0]; val = opt[1]
+        if key == '-h' or key == '--help':
+            print "usage: mdmain.py [-h|-l|-c <name>|-m <name>] file.mdzip"
+            print "  -l | --list                list diagrams"
+            print "  -c <n> | --class-name=<n>  tbd"
+            print "  -b <n> | --file-base=<n>   tbd"
+            print "  -m m1,m2 | --mach=m1,m2    tbd"
+            print "example: mdmain.py project.mdzip stmach1"
+            sys.exit(0)
+        elif key == '-l' or key == '--list':
+            ld = True
+        elif key == '-c' or key == '--class-name':
+            cn = val
+        elif key == '-b' or key == '--file-base':
+            fb = val
+        elif key == '-m' or key == '--mach':
+            mach = val.split(',')
+        else:
+            print "unknown option:", key
+
+    # Generate parser.
+    mdh = MagicdrawFileHdlr()
+    h = XmiDocumentHandler(mdh)
+
+    # Generate model and extensions.
+    if is_zipfile(file):
+        xml.sax.parseString(zipbuf(file), h)
+    else:
+        # f = codec.open(file)
+        xml.sax.parse(file, h)
+
+    #
+    mdh.patchup()               # see patchup call in mdreader
+    model = mdh.model
+    extns = mdh.extns
+
+    if False:
+        umlval = uanlyz.ModelValidator()
+        umlval.validate_model(mdh.model)
+
+    del h, mdh
+
+    # Get base name.  (needed?)
+    base = re.sub(r'\.[^\.]+$', '', file)
+    base = re.sub(r'.*\/', '', base)
+
+    # === Generate output. =============
+    if ld:
+        list_diag(model)
+
+    # \todo Allow regexp's to be used to choose diagrams.
+    # This should be option to generate code.  Sometimes we just gen diag.
+    ss = None
+    for machname in diags:
+        #pdb.set_trace()
+        ss = uml_to_ssk(model, machname)
+
+        if False:
+            f = open(base + '.pkl', 'w')
+            p = pickle.Pickler(f)
+            p.dump(ss)
+            f.close()
+
+        if True and ss:
+            index_ssk(ss)
+            f1 = open("demo.xml", 'w')
+            sp = SskXmlWriter(ss, f1)
+            sp.write()
+            f1.close()
+
+        if True and ss:
+            f1 = open("demo.c", 'w')
+            impl = C2Impl(ss)
+            impl.dump_body(f1)
+            f1.close()
+
+        if False and ss:
+            f1 = open("demo.pml", 'w')
+            impl = PmlImpl(ss)
+            impl.dump_body(f1)
+            f1.close()
+
+if __name__ == '__main__':
+    main(sys.argv)
+    print "\nTODO:"
+    print "  + actions are not getting through"
+    print "  + implied transitions due to orthongal state exit"
+
+# --- last line of mdcnvt ---

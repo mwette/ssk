@@ -1,0 +1,125 @@
+% ssk_mdrw.tex
+%% using magicdraw to generate diagrams.
+
+\iffalse
+Copyright (C) 2018 -- Matthew R. Wette.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with no
+Invariant Sections, no Front-Cover Texts, and no Back-Cover Texts.  A
+copy of the license is included with the distribution as @file{COPYING.DOC}.
+\fi
+
+
+
+\documentclass{article}
+\usepackage{times}
+\usepackage{amsmath}
+%\usepackage[frame,matrix]{xy}
+\usepackage[all]{xy}
+
+\setlength{\textheight}{9in}
+\setlength{\textwidth}{6.5in}
+\setlength{\topmargin}{-.5in}
+\setlength{\evensidemargin}{0in}
+\setlength{\oddsidemargin}{0in}
+
+\title{%
+Use of MagicDraw for Generating StateCharts
+}
+\author{Matt Wette \\ project }
+\date{\large DRAFT of \noindent\today \ /\the\time}
+
+\begin{document}
+\maketitle
+
+\section{Guildlines}
+
+old notes:
+\begin{verbatim}
+transitions:
+  trigger -> signalevent -> signal -> name
+  effect ->
+    activity -> name
+
+HACKS:
+
+if effect is opaquebehavior use name for action expression
+
+if effect is functionbehavior name is function name (no args), use body
+
+in case where there is specification->body and name use body first, then name
+\end{verbatim}
+
+Declare signal triggers at global level:
+\begin{enumerate}
+\item
+Right click on the ``Data'' field of the Containment window.
+\item
+Click on ``New Element ...'', select ``Package'' and name it ``Events.''
+\item
+Right click on the ``Data'' field of the Containment window.
+\item
+Click on ``New Element ...'', select ``Package'' and name it ``Actions.''
+\end{enumerate}
+
+Generating Transitions:
+\begin{enumerate}
+\item
+Please declare events using ``Signal Event''.  Use ``Signal'' type
+and select a signal you have declared as above.
+\item
+For guards just use the guard field.
+\item 
+For actions use ``Function Behavior'' and provide a name for the action.
+You should handle what the name does later.   Note that actions cannot
+take arguments.  NEED TO LOOK INTO THIS.
+\end{enumerate}
+
+\section{Stuff}
+
+For all signals, in ``containment'' area create signal (right-click on
+project and scroll down to signal ...
+
+effects (aka actions): Options:
+\begin{enumerate}
+\item
+Use OpaqueBehavior.  But only the name shows up on the diagram.
+\end{enumerate}
+
+Suggest use \texttt{send\_SignalName} or \texttt{send2\_SignalName}
+to send to port 2.
+
+
+\section{Miscellaneous Comments}
+
+The UML2 spec use of isComposite and isOrthogonal is lame.  Why not just
+say ``type'' is Simple, Composite, Orthongal, or Submachine?  So much easier.
+Instead there are four member variables: isSimple, isComposite, isOrthogonal
+and isSubmachine.  The only time more than one is true is when we have an
+orthognal state in which case isComposite is also true.
+
+If you get something wrong in MagicDraw it may take some work to fix.  
+For example, if you have a trigger on a transition from an initial state
+the SSK will tag this as an error.  To remove the trigger you need to remove
+it from the data hierarchy: I don't think you can remove in the trigger dialog.
+
+\section{diagrams}
+
+\begin{displaymath}
+\UseTips
+\entrymodifiers={++[o][F]}
+\xymatrix @-1mm {
+ *+\txt{in} \ar[r] 
+& 1 \ar@(dr,dl)[]^b \ar[r]_a
+& 2 \ar@(d,dl)[]^a \ar[r]_b
+& 3 \ar `u[l] `^d[l]_a [l] \ar[r]_b
+& *++[o][F=]{4}
+    \ar `dl_l[ll]+/d6mm/`l_ul[ll]^a [ll]
+    \ar `u^l[lll]+/u1cm/`l^d[lll]_b [lll]
+}
+\end{displaymath}
+
+\end{document}
+%% --- last line of ssk_mdrw.tex ---
