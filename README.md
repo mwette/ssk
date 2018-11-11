@@ -71,5 +71,3 @@ driver
 * call sskP.SskXmlWriter().write()
 * maybe dump .c file: M2Impl(ss).dump_body()
 * maybe dump .pml file: M2Impl(ss).dump_body()
-
-
